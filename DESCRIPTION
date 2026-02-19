@@ -14,7 +14,10 @@ Suggests:
 Config/testthat/edition: 3
 Imports: 
     data.table,
+    dplyr,
     purrr,
-    SummarizedExperiment
+    SummarizedExperiment,
+    tibble,
+    tidyplots
 Remotes: 
     bioc::release/SummarizedExperiment

@@ -2,4 +2,6 @@
 
 S3method(process_counts_table,character)
 S3method(process_counts_table,data.table)
+export(label_strategies)
 export(process_counts_table)
+export(volcano_plot)
