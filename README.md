@@ -1,7 +1,33 @@
-### R Bioinformatics Utils
+# R Bioinformatics Utils
 
-##### process_counts_table
-- Uses fread to load the counts txt file produced by featureCounts into a table.
-- Accepts a mapper function as an argument to convert sample names into metadata (Useful when sample names contain batch, treatment, etc... information).
-- Accepts a Bioconductor annotation package database for gene symbol labling of Ensembl IDs.
-- Returns expression matrix and metadata within a SummarizedExperiemnt object to be used downstream.
+## Installation
+```r
+devtools::install("path/to/RBioinfUtils")
+```
+
+Requires: `DESeq2`, `SummarizedExperiment`, `data.table`, `purrr`, `dplyr`, `tidyplots`, and (optional) organism annotation packages (e.g., `org.Mm.eg.db`, `org.Hs.eg.db`)
+
+## Functions
+
+### `process_counts_table()`
+
+Loads featureCounts output into a `SummarizedExperiment` object for downstream analysis.
+
+- Converts sample names to metadata by using user-provided function that takes a sample name string and returns a named list of metadata (e.g., `Group`, `Batch`, `Replicate`). Useful when sample names encode experimental design information.
+- Adds gene symbols using Bioconductor annotation databases
+- Returns expression matrix and metadata in a `SummarizedExperiment`
+
+### `volcano_plot()`
+
+Creates volcano plots from DESeq2 results.
+
+- Highlights significant genes by fold change and p-value thresholds
+- Labels top genes using customizable strategies
+- Supports gene symbols with optional fallback to Ensembl IDs for labeling
+
+**Label strategies:** Control which genes are labeled:
+- `label_strategies$candidate_pval` - Top significant genes by p-value (default)
+- `label_strategies$candidate_lfc` - Top significant genes by fold change
+- `label_strategies$pval_only` - Top genes by p-value (ignores significance)
+
+Custom strategies can be defined as functions that filter and select genes from the data.
