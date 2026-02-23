@@ -5,7 +5,7 @@
 devtools::install("path/to/RBioinfUtils")
 ```
 
-Requires: `DESeq2`, `SummarizedExperiment`, `data.table`, `purrr`, `dplyr`, `tidyplots`, and (optional) organism annotation packages (e.g., `org.Mm.eg.db`, `org.Hs.eg.db`)
+Requires: `DESeq2`, `SummarizedExperiment`, `data.table`, `purrr`, `dplyr`, `tidyplots`, `alphahull`, `sf`, `ggnewscale`, `ggplot2`, and (optional) organism annotation packages (e.g., `org.Mm.eg.db`, `org.Hs.eg.db`)
 
 ## Functions
 
@@ -31,3 +31,17 @@ Creates volcano plots from DESeq2 results.
 - `label_strategies$pval_only` - Top genes by p-value (ignores significance)
 
 Custom strategies can be defined as functions that filter and select genes from the data.
+
+### `plot_umap_with_hulls()`
+
+Creates UMAP plots with convex hulls around clusters.
+
+- Draws alpha-shape hulls around cluster point clouds
+- Labels cluster centroids
+- Colors points by continuous value (e.g., expression, score)
+
+**Required columns in `umap_df`:**
+- `UMAP1` - First UMAP dimension
+- `UMAP2` - Second UMAP dimension  
+- `cluster` - Cluster assignment (factor or character)
+- `value` - Continuous variable for point coloring

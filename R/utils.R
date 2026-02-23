@@ -197,3 +197,77 @@ volcano_plot <- function(dds,
 }
 
 
+#' Plot UMAP with cluster hulls
+#'
+#' @param umap_df Data frame containing UMAP1, UMAP2, cluster, and value columns
+#' @param alpha Alpha shape parameter for hull construction (default: 5)
+#' @param buffer_dist Buffer distance to expand hulls (default: 0.3)
+#' @return A tidyplot/ggplot2 object
+#' @export
+plot_umap_with_hulls <- function(umap_df, alpha = 5, buffer_dist = 0.3) {
+  order_ahull_edges <- function(edges) {
+    find_next <- function(remaining, current, threshold = 1e-10) {
+      which(
+        (abs(remaining$x1 - current[1]) < threshold & abs(remaining$y1 - current[2]) < threshold) |
+          (abs(remaining$x2 - current[1]) < threshold & abs(remaining$y2 - current[2]) < threshold)
+      )
+    }
+    orient_edge <- function(row, current, threshold = 1e-10) {
+      if (abs(row$x2 - current[1]) < threshold & abs(row$y2 - current[2]) < threshold)
+        row[, c("x1","y1","x2","y2")] <- row[, c("x2","y2","x1","y1")]
+      row
+    }
+    walk_edges <- function(result, remaining, current) {
+      idx <- find_next(remaining, current)
+      if (length(idx) == 0 || nrow(remaining) == 0) return(result)
+      next_edge <- orient_edge(remaining[idx[1], ], current)
+      walk_edges(rbind(result, next_edge), remaining[-idx[1], ], c(next_edge$x2, next_edge$y2))
+    }
+    ordered <- walk_edges(edges[1, ], edges[-1, ], c(edges$x2[1], edges$y2[1]))
+    tibble::tibble(UMAP1 = c(ordered$x1, ordered$x1[1]),
+                   UMAP2 = c(ordered$y1, ordered$y1[1]))
+  }
+
+  expand_hull <- function(hull_df, buffer_dist) {
+    hull_df |>
+      as.matrix() |>
+      list() |>
+      sf::st_polygon() |>
+      sf::st_buffer(buffer_dist) |>
+      sf::st_coordinates() |>
+      tibble::as_tibble() |>
+      dplyr::select(UMAP1 = X, UMAP2 = Y)
+  }
+
+  cluster_hulls <- umap_df |>
+    dplyr::group_by(cluster) |>
+    dplyr::group_modify(~ {
+      ah <- alphahull::ashape(as.matrix(.x[, c("UMAP1", "UMAP2")]), alpha = alpha)
+      edges <- as.data.frame(ah$edges[, c("x1", "y1", "x2", "y2")])
+      ordered_hull <- order_ahull_edges(edges)
+      expand_hull(ordered_hull, buffer_dist = buffer_dist)
+    }) |>
+    dplyr::ungroup()
+
+  centroids <- umap_df |>
+    dplyr::group_by(cluster) |>
+    dplyr::summarise(dplyr::across(c(UMAP1, UMAP2), mean))
+
+  umap_df |>
+    tidyplots::tidyplot(x = UMAP1, y = UMAP2, color = value) |>
+    tidyplots::add(ggnewscale::new_scale_fill()) |>
+    tidyplots::add(ggplot2::geom_polygon(
+      data = cluster_hulls,
+      ggplot2::aes(x = UMAP1, y = UMAP2, group = cluster, fill = cluster),
+      alpha = 0.5, color = "black", linewidth = 0.5,
+      inherit.aes = FALSE
+    )) |>
+    tidyplots::add(ggplot2::scale_fill_brewer(palette = "Pastel1", name = "Cluster")) |>
+    tidyplots::add_data_points(size = 1.2, alpha = 0.6) |>
+    tidyplots::add(ggplot2::geom_label(
+      data = centroids,
+      ggplot2::aes(x = UMAP1, y = UMAP2, label = cluster),
+      inherit.aes = FALSE, size = 3, alpha = 0.95
+    ))
+}
+
