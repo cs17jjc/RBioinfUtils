@@ -196,6 +196,67 @@ volcano_plot <- function(dds,
     tidyplots::adjust_y_axis_title("$-Log[10]~italic(P)~adjusted$")
 }
 
+#' Create a volcano plot from limma results
+#' @param fit MArrayLM object (output from limma::eBayes())
+#' @param coef Coefficient or contrast to extract results for (passed to limma::topTable())
+#' @param lfc_threshold Log2 fold change threshold for significance (default: 1)
+#' @param padj_threshold Adjusted p-value threshold for significance (default: 0.05)
+#' @param n_labels Number of top genes to label per direction (default: 6)
+#' @param label_strategy Function for selecting genes to label. Use label_strategies$candidate_pval (default), label_strategies$pval_only, label_strategies$candidate_lfc, or a custom function
+#' @param up_color Color for upregulated genes (default: "#FF7777")
+#' @param down_color Color for downregulated genes (default: "#7DA8E6")
+#' @return A tidyplot/ggplot2 object
+#' @export
+volcano_plot_limma <- function(fit,
+                               coef = NULL,
+                               lfc_threshold = 1,
+                               padj_threshold = 0.05,
+                               n_labels = 6,
+                               label_strategy = label_strategies$candidate_pval,
+                               up_color = "#FF7777",
+                               down_color = "#7DA8E6") {
+  df <- limma::topTable(fit, coef = coef, number = Inf, sort.by = "P") |>
+    tibble::rownames_to_column("gene_id") |>
+    dplyr::rename(log2FoldChange = logFC, padj = adj.P.Val) |>
+    dplyr::mutate(
+      neg_log10_padj = -log10(padj),
+      direction = dplyr::if_else(log2FoldChange > 0, "up", "down", NA),
+      candidate = abs(log2FoldChange) >= lfc_threshold & padj < padj_threshold,
+      Label = gene_id
+    )
+
+  df |>
+    tidyplots::tidyplot(x = log2FoldChange, y = neg_log10_padj) |>
+    tidyplots::add_data_points(
+      data = tidyplots::filter_rows(!candidate),
+      color = "lightgrey",
+      rasterize = TRUE
+    ) |>
+    tidyplots::add_data_points(
+      data = tidyplots::filter_rows(candidate, direction == "up"),
+      color = up_color,
+      alpha = 0.5
+    ) |>
+    tidyplots::add_data_points(
+      data = tidyplots::filter_rows(candidate, direction == "down"),
+      color = down_color,
+      alpha = 0.5
+    ) |>
+    tidyplots::add_reference_lines(
+      x = c(-lfc_threshold, lfc_threshold),
+      y = -log10(padj_threshold)
+    ) |>
+    tidyplots::add_data_labels_repel(
+      data = function(data) label_strategy(data, n_labels),
+      label = Label,
+      color = "#000000",
+      min.segment.length = 0,
+      background = TRUE
+    ) |>
+    tidyplots::adjust_x_axis_title("$Log[2]~fold~change$") |>
+    tidyplots::adjust_y_axis_title("$-Log[10]~italic(P)~adjusted$")
+}
+
 
 #' Plot UMAP with cluster hulls
 #'
